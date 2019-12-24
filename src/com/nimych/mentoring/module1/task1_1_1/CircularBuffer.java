@@ -1,26 +1,32 @@
 package com.nimych.mentoring.module1.task1_1_1;
 
+import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
+@SuppressWarnings("unchecked")
 public class CircularBuffer<T> implements Buffer<T> {
 
     private T[] array;
 
-    private int head;
-
     private int tail;
+
+    private int head;
 
     private int size;
 
-    public CircularBuffer(int capacity) {
+    private Class<T> type;
+
+    public CircularBuffer(int capacity, Class<T> type) {
         if (capacity < 0) {
             throw new RuntimeException("Illegal capacity: " + capacity);
         } else {
             array = (T[]) new Object[capacity];
-            head = -1;
-            tail = -1;
+            tail = 0;
+            head = 0;
             size = 0;
+            this.type = type;
         }
     }
 
@@ -29,11 +35,8 @@ public class CircularBuffer<T> implements Buffer<T> {
         if (isFull()) {
             throw new RuntimeException("Unable to add value, Circular Buffer is full");
         } else {
-            tail = (tail + 1) % array.length;
-            if (head == -1) {
-                head++;
-            }
-            array[tail] = t;
+            array[head] = t;
+            head = (head + 1) % array.length;
             size++;
         }
     }
@@ -43,8 +46,9 @@ public class CircularBuffer<T> implements Buffer<T> {
         if (isEmpty()) {
             throw new RuntimeException("Unable to get value, Circular Buffer is empty");
         } else {
-            T value = array[head];
-            head = (head + 1) % array.length;
+            T value = array[tail];
+            array[tail] = null;
+            tail = (tail + 1) % array.length;
             size--;
             return value;
         }
@@ -52,27 +56,53 @@ public class CircularBuffer<T> implements Buffer<T> {
 
     @Override
     public Object[] toObjectArray() {
-        return new Object[0];
+        Object[] objectArray = new Object[size];
+        for (int i = 0; i < objectArray.length; i++) {
+            objectArray[i] = array[getIndex(i)];
+        }
+        return objectArray;
     }
 
     @Override
     public T[] toArray() {
-        return null;
+        T[] copy = (T[]) Array.newInstance(type, size);
+        System.arraycopy(toObjectArray(), 0, copy, 0, size);
+        return copy;
     }
 
     @Override
     public List<T> asList() {
-        return null;
+        return Arrays.asList(toArray());
     }
 
     @Override
     public void addAll(List<? extends T> toAdd) {
-
+        int listSize = toAdd.size();
+        if (listSize > (array.length - size)) {
+            throw new RuntimeException("There is no enough space to add this list");
+        } else {
+            for (T value : toAdd) {
+                put(value);
+            }
+            size += listSize;
+        }
     }
 
     @Override
     public void sort(Comparator<? super T> comparator) {
+        for (int j = 1; j < size; j++) {
+            T key = array[getIndex(j)];
+            int i = (array.length + j - 1) % array.length;
+            while ((i > -1) && (comparator.compare(array[getIndex(i)], key) < 0)) {
+                array[getIndex(i + 1)] = array[getIndex(i)];
+                i--;
+            }
+            array[getIndex(i + 1)] = key;
+        }
+    }
 
+    private int getIndex(int increment) {
+        return (tail + increment) % array.length;
     }
 
     @Override
